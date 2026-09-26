@@ -1,508 +1,999 @@
+"use client";
 import { useState, useEffect, useRef } from "react";
 
+// ─── INLINE SVG ICONS (lucide paths, no lucide-react dependency) ─────────────
+const Svg = ({ className, style, children, ...p }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} style={style} {...p}>{children}</svg>
+);
+const HomeIcon     = (p) => <Svg {...p}><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></Svg>;
+const ChevronRight = (p) => <Svg {...p}><path d="m9 18 6-6-6-6"/></Svg>;
+const Loader2      = (p) => <Svg {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></Svg>;
+const Zap          = (p) => <Svg {...p}><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></Svg>;
+const CheckCircle  = (p) => <Svg {...p}><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></Svg>;
+const Eye          = (p) => <Svg {...p}><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></Svg>;
+const Settings     = (p) => <Svg {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Svg>;
+const Info         = (p) => <Svg {...p}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></Svg>;
+
+const Database     = (p) => <Svg {...p}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></Svg>;
+const Cpu          = (p) => <Svg {...p}><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></Svg>;
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
 const SUPABASE_URL      = "https://iljzwxwopxuzpgkjivmn.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_KEoCJtCLyGTJjqB1phGy2Q_v3PftUYH";
-const S_SESSION = "shdm_medium_automated_session_id";
-const FLOW      = "medium_automated";
+const FLOW              = "medium_automated";
+const SURVEY_RETURN_URL = "https://www.surveymonkey.ca/r/5C7MWMD";
 
-const COLLECTION_CATS = [
-  { id: "homeSensors",      icon: "🏠", label: "Home Sensors",      subs: ["Kitchen Sensors", "Climate Sensors"] },
-  { id: "behaviorPatterns", icon: "📊", label: "Behavior Patterns", subs: ["Motion Tracking", "Presence Detection"] },
-  { id: "purchaseHistory",  icon: "🛒", label: "Purchase History",  subs: [] },
+// Visibility / Automation for this condition
+const isLow      = false;
+const isMed      = true;
+const isHigh     = false;
+const isLowAuto  = false;
+const isMedAuto  = false;
+const isHighAuto = true;
+const MODE_LABEL = "Info: Medium · Control: Automated";
+const VISIBILITY = "medium";   // low | medium | high
+const AUTOMATION = "automated";   // manual | assisted | automated
+
+// ─── OFFERS DATA ──────────────────────────────────────────────────────────────
+const ALL_OFFERS = [
+  { id:"1", name:"Pizza Meal",       description:"2 Large Pizzas (Margherita & Pepperoni), 2 Pops, Large Fries",       price:"$24.99", originalPrice:"$32.99", icon:"🍕", matchScore:95, reasons:["Perfect for 2 people","Popular at dinner time","Matches past orders"],    nutritionInfo:"~1800 cal", category:"Food"    },
+  { id:"2", name:"Burger Combo",     description:"2 Gourmet Burgers, 2 Seasoned Fries, 2 Soft Drinks",                price:"$18.99", originalPrice:"$24.99", icon:"🍔", matchScore:92, reasons:["Quick delivery","Budget-friendly","High ratings"],                         nutritionInfo:"~1400 cal", category:"Food"    },
+  { id:"3", name:"Chinese Dinner",   description:"Fried Rice (Large), Chow Mein, 6 Spring Rolls, 2 Entrees",          price:"$32.99", originalPrice:"$38.99", icon:"🥡", matchScore:88, reasons:["Variety for sharing","Matches dietary preferences","Free fortune cookies"],nutritionInfo:"~2000 cal", category:"Food"    },
+  { id:"4", name:"Pasta Bowl",       description:"Large Pasta Bowl (Alfredo or Marinara), Garlic Bread, Caesar Salad",price:"$16.99", originalPrice:"$21.99", icon:"🍝", matchScore:85, reasons:["Comfort food","Vegetarian option","Quick prep time"],                      nutritionInfo:"~1200 cal", category:"Food"    },
+  { id:"5", name:"Climate Control",  description:"Smart temperature optimization service",                              price:"$12.99", originalPrice:"$19.99", icon:"🏡", matchScore:90, reasons:["Saves energy","Perfect comfort","Auto-scheduling"],                       category:"Home"    },
+  { id:"6", name:"Smart Lighting",   description:"Automated lighting based on presence",                               price:"$9.99",  originalPrice:"$15.99", icon:"💡", matchScore:85, reasons:["Energy efficient","Mood lighting","Schedule-based"],                      category:"Home"    },
+  { id:"7", name:"Fitness Class",    description:"Virtual personal training session",                                  price:"$15.99", originalPrice:"$24.99", icon:"💪", matchScore:88, reasons:["Personalized workout","Flexible timing","Expert guidance"],                category:"Wellness"},
+  { id:"8", name:"Yoga Session",     description:"Guided meditation and stretching",                                   price:"$19.99", originalPrice:"$29.99", icon:"🧘", matchScore:94, reasons:["Stress relief","Evening relaxation","Beginner-friendly"],                  category:"Wellness"},
+  { id:"9", name:"Smart Treadmill",  description:"Smart treadmill with performance tracking",                          price:"$899.99",originalPrice:"$1199.99",icon:"🏃", matchScore:91, reasons:["Home fitness","Space-saving design","Built-in programs"],                  category:"Wellness"},
+  { id:"10",name:"Yoga Mat Set",     description:"Premium mat with blocks and strap",                                  price:"$49.99", originalPrice:"$79.99", icon:"🧘", matchScore:86, reasons:["Complete starter kit","Non-slip surface","Eco-friendly"],                  category:"Wellness"},
+  { id:"11",name:"Resistance Bands", description:"Set of 5 resistance levels with door anchor",                        price:"$29.99", originalPrice:"$44.99", icon:"💪", matchScore:95, reasons:["Versatile workouts","Compact storage","Full-body training"],               category:"Wellness"},
 ];
-const USAGE_CATS = [
-  { id: "foodServices",     icon: "🍕", label: "Food Services",     desc: "Meal recommendations and delivery",  subs: ["Food Delivery", "Grocery Shopping"] },
-  { id: "homeServices",     icon: "🏠", label: "Home Services",     desc: "Automation and maintenance",         subs: ["Home Automation", "Maintenance"] },
-  { id: "wellnessServices", icon: "💪", label: "Wellness Services", desc: "Health and fitness support",         subs: [] },
+
+// ─── CONSENT CATEGORIES (MEDIUM VISIBILITY) ──────────────────────────────────
+const ACQ_CATS = [
+  { id:"sensors",   label:"Home Sensors",      icon:"🏠", sensitivity:"medium", description:"Temperature, kitchen activity, and presence sensors" },
+  { id:"behavior",  label:"Behavior Patterns", icon:"📊", sensitivity:"high",   description:"Daily routines, movement patterns, and activity timing" },
+  { id:"purchases", label:"Purchase History",  icon:"🛒", sensitivity:"medium", description:"Past orders, preferences, and spending patterns" },
 ];
-const OFFERS = [
-  { id: "1", emoji: "🍕", name: "Pizza Meal",     desc: "2 Large Pizzas, 2 Pops, Large Fries",    price: 24.99, original: 32.99, save: 8 },
-  { id: "2", emoji: "🍔", name: "Burger Combo",   desc: "2 Burgers, 2 Fries, 2 Drinks",           price: 18.99, original: 24.99, save: 6 },
-  { id: "3", emoji: "🥡", name: "Chinese Dinner", desc: "Fried Rice, Noodles, Spring Rolls",       price: 32.99, original: 38.99, save: 6 },
-  { id: "4", emoji: "🍝", name: "Pasta Bowl",     desc: "Pasta, Garlic Bread, Salad",              price: 16.99, original: 21.99, save: 5 },
+const PROC_CATS = [
+  { id:"food",     label:"Food Services",     icon:"🍕", sensitivity:"low",    description:"Personalized meal recommendations and delivery offers" },
+  { id:"home",     label:"Home Services",     icon:"🏡", sensitivity:"low",    description:"Climate control, lighting, and maintenance automation" },
+  { id:"wellness", label:"Wellness Services", icon:"💪", sensitivity:"medium", description:"Fitness tracking, health insights, and wellness offers" },
 ];
-const TOP_OFFER = OFFERS[0];
+const sensitivityColor = (level) =>
+  level === "high"   ? "bg-red-100 text-red-700 border-red-200"
+: level === "medium" ? "bg-amber-100 text-amber-700 border-amber-200"
+:                      "bg-green-100 text-green-700 border-green-200";
+
+// Automated: all categories pre-enabled by system
+const DEFAULT_ACQ  = { sensors:true, behavior:true, purchases:true };
+const DEFAULT_PROC = { food:true,    home:true,     wellness:true };
+
+// ─── TASKS ────────────────────────────────────────────────────────────────────
 const TASKS = [
-  { id: "task1", label: "Task 1", desc: "Review the suggested settings in the Data Collection and Data Usage tabs and adjust them according to your preferences." },
-  { id: "task2", label: "Task 2", desc: "Configure the Data Collection tab by allowing or denying access to home sensors and purchase history." },
-  { id: "task3", label: "Task 3", desc: "Configure the Data Usage tab by allowing or denying access to home services and wellness-related services." },
-  { id: "task4", label: "Task 4", desc: "Review all three tabs: Food, Home, and Wellness. Explore and select one offer that best matches your preferences." },
-  { id: "task5", label: "Task 5", desc: "Review the final order summary and confirm or place the order." },
+  { id:1, label:"Task 1", short:"Configure Data Collection",
+    desc:"Go to Privacy Settings, Data Collection tab. Review and customize the types of data this system is allowed to collect about you. Adjust the settings to match your preferences and click to apply your changes." },
+  { id:2, label:"Task 2", short:"Configure Data Use",
+    desc:"Go to Data Usage tab. Review and configure how your data may be used. Adjust the settings to match your preferences and click to apply your changes." },
+  { id:3, label:"Task 3", short:"Select an Offer",
+    desc:"Browse the available offers across three categories: Food, Home, and Wellness. Select the one offer that best matches your preferences." },
+  { id:4, label:"Task 4", short:"Place Your Order",
+    desc:"Review the order summary based on the offer you selected. When you are ready, confirm your order to place it." },
 ];
 
-// Automated: all allow
-const DEFAULT_CAT = { homeSensors: "allow", behaviorPatterns: "allow", purchaseHistory: "allow" };
-const DEFAULT_USG = { foodServices: "allow", homeServices: "allow", wellnessServices: "allow" };
+// ═══ STUDY TRACKING ═══ identical in all 9 conditions (only VISIBILITY / AUTOMATION differ) ═══
+// Tables (create once with study_supabase_setup.sql):
+//   study_events          → one row per interaction
+//   study_task_summaries  → exactly one row per task (1–4) per visit
+// IDs:
+//   participant_id → the SurveyMonkey ID from the URL (?session=…); use it to match survey + website data
+//   session_id     → random ID of this visit (new tab = new visit)
+// Counting rules (same everywhere):
+//   clicks    → every click on a control (buttons, tabs, toggles, expand arrows, back links)
+//   overrides → a click that contradicts a system choice (never in Manual):
+//               • setting a privacy category to the opposite of the system's pre-selection
+//               • choosing an offer that is not the system's highlighted/selected offer of its tab
+//   errors    → backward navigation (Back / Return to Home) and clicks on disabled controls
+// Every click belongs to the current (lowest unfinished) task. Task n+1 starts when task n finishes.
+const EVENTS_TABLE = "study_events";
+const TASKS_TABLE  = "study_task_summaries";
 
-function getOrCreateSessionId() {
+function sbInsert(table, row) {
   try {
-    let id = localStorage.getItem(S_SESSION);
-    if (!id) { id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`; localStorage.setItem(S_SESSION, id); }
-    return id;
-  } catch (_) { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
-}
-async function logEvent(row) {
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/interaction_logs`, {
+    fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Prefer": "return=minimal" },
+      keepalive: true, // still delivered when the page redirects to SurveyMonkey
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer: "return=minimal",
+      },
       body: JSON.stringify(row),
-    });
-  } catch (_) {}
+    })
+      .then(r => { if (!r.ok) console.warn(`[study] insert into ${table} failed (${r.status})`); })
+      .catch(() => {});
+  } catch {}
 }
-async function logTaskSummary(row) {
+
+function makeId(len = 10) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/task_summaries`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Prefer": "return=minimal" },
-      body: JSON.stringify(row),
-    });
-  } catch (_) {}
+    const bytes = crypto.getRandomValues(new Uint8Array(len));
+    return Array.from(bytes, b => chars[b % chars.length]).join("");
+  } catch {
+    return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  }
 }
-function createTracker(sessionId) {
-  const s = { task: null, start: null, clicks: 0, errors: 0, overrides: 0, depth: 0 };
-  return {
-    start(taskId) { s.task = taskId; s.start = Date.now(); s.clicks = 0; s.errors = 0; s.overrides = 0; s.depth = 0; },
-    click()    { s.clicks++; },
-    error()    { s.errors++; },
-    override() { s.clicks++; s.overrides++; },
-    expand(d)  { s.clicks++; if (d > s.depth) s.depth = d; },
-    complete(offerName = null, orderPlaced = false) {
-      if (!s.task) return null;
-      const time_ms = Date.now() - s.start;
-      const result = { task: s.task, time_ms, clicks: s.clicks, errors: s.errors, overrides: s.overrides, depth: s.depth };
-      logTaskSummary({ session_id: sessionId, flow: FLOW, task: s.task, time_ms, clicks: s.clicks, errors: s.errors, overrides: s.overrides, depth: s.depth, offer_selected: offerName, order_placed: orderPlaced, client_timestamp: new Date().toISOString() });
-      s.task = null;
-      return result;
+
+// SurveyMonkey ID from ?session=… (also accepts ?pid=…); kept for this tab so a reload cannot lose it
+function resolveParticipant() {
+  const KEY = "shdm_participant_id";
+  const clean = v => (v || "").trim().replace(/^\[|\]$/g, "");
+  let id = "", source = "url";
+  try { const p = new URLSearchParams(window.location.search); id = clean(p.get("session") || p.get("pid")); } catch {}
+  if (!id) { source = "storage"; try { id = clean(sessionStorage.getItem(KEY)); } catch {} }
+  if (!id) { source = "missing"; id = "unknown"; }
+  else { try { sessionStorage.setItem(KEY, id); } catch {} }
+  return { id, source };
+}
+
+function resolveVisit() {
+  const KEY = `shdm_visit_${FLOW}`;
+  try {
+    let v = sessionStorage.getItem(KEY);
+    if (!v) { v = makeId(12); sessionStorage.setItem(KEY, v); }
+    return v;
+  } catch { return makeId(12); }
+}
+
+function createStudyTracker() {
+  const participant = resolveParticipant();
+  const sessionId   = resolveVisit();
+  const tasks = {};
+  [1, 2, 3, 4].forEach(n => { tasks[n] = { start: null, clicks: 0, overrides: 0, errors: 0, done: false }; });
+  let current = 1;
+  tasks[1].start = Date.now();
+
+  const base = () => ({
+    participant_id: participant.id, session_id: sessionId, flow: FLOW,
+    visibility: VISIBILITY, automation: AUTOMATION, client_timestamp: new Date().toISOString(),
+  });
+
+  const t = {
+    participantId: participant.id,
+    participantSource: participant.source,
+    sessionId,
+    get current() { return current; },          // 1–4, or 5 when all tasks are done
+    isDone: n => !!tasks[n] && tasks[n].done,
+
+    // log without counting (page views, system events)
+    event(event, f = {}) {
+      sbInsert(EVENTS_TABLE, {
+        ...base(), task: current <= 4 ? current : null, event,
+        page: f.page ?? null, target: f.target ?? null, value: f.value ?? null,
+        is_override: !!f.override, is_error: !!f.error, details: f.details ?? null,
+      });
+    },
+
+    // every user click on a control goes through here → counted for the current task + logged
+    action(event, f = {}) {
+      if (current <= 4) {
+        const k = tasks[current];
+        k.clicks++;
+        if (f.override) k.overrides++;
+        if (f.error) k.errors++;
+      }
+      t.event(event, f);
+    },
+
+    // finish task n (and any earlier unfinished task); returns finished task indices (0-based, for the sidebar)
+    complete(n, via, extra = {}) {
+      const finished = [];
+      while (current <= n && current <= 4) {
+        const k = tasks[current];
+        sbInsert(TASKS_TABLE, {
+          ...base(), task: current,
+          completed_via: current === n ? via : "auto_" + via,
+          time_ms: Date.now() - k.start,
+          clicks: k.clicks, overrides: k.overrides, errors: k.errors,
+          offer_selected: current === n ? (extra.offer ?? null) : null,
+          order_placed: current === n ? !!extra.orderPlaced : false,
+        });
+        k.done = true;
+        finished.push(current - 1);
+        current++;
+        if (current <= 4) tasks[current].start = Date.now();
+      }
+      return finished;
     },
   };
+  return t;
 }
 
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', sans-serif; background: #f5f6fa; color: #111827; min-height: 100vh; }
-  .app { display: flex; min-height: 100vh; }
-  .sidebar { width: 220px; flex-shrink: 0; background: #fff; border-right: 1px solid #e4e6ef; padding: 20px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-  .sidebar-title { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; padding: 0 16px 12px; }
-  .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; cursor: pointer; transition: background .12s; border-left: 3px solid transparent; }
-  .task-item:hover:not(.done):not(.locked) { background: #f5f6fa; }
-  .task-item.active { background: #eef1ff; border-left-color: #4263eb; }
-  .task-item.done { opacity: 0.5; cursor: default; }
-  .task-item.locked { opacity: 0.35; cursor: not-allowed; }
-  .task-cb { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #d1d5db; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 10px; }
-  .task-cb.done { background: #16a34a; border-color: #16a34a; color: #fff; }
-  .task-cb.active { border-color: #4263eb; }
-  .task-lbl { font-size: 12px; font-weight: 600; }
-  .task-desc { font-size: 11px; color: #6b7280; margin-top: 2px; line-height: 1.4; }
-  .content-area { flex: 1; display: flex; justify-content: center; background: #f5f6fa; }
-  .main { width: 100%; max-width: 600px; padding: 24px; }
-  .task-banner { background: #1e1b4b; color: #e0e7ff; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; }
-  .task-banner-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; opacity: .6; margin-bottom: 4px; }
-  .task-banner-desc { font-size: 13px; line-height: 1.5; }
-  .btn-task-done { display: block; width: 100%; margin-top: 10px; padding: 11px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
-  .btn-task-done:hover { background: #4338ca; }
-  .back { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: #6b7280; cursor: pointer; margin-bottom: 16px; }
-  .back:hover { color: #4263eb; }
-  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-  .page-sub { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
-  .info-banner { display: flex; gap: 10px; padding: 12px 14px; border-radius: 10px; background: #eef1ff; border: 1px solid #c7d2fe; margin-bottom: 12px; }
-  .info-banner-icon { font-size: 14px; color: #4263eb; flex-shrink: 0; margin-top: 1px; }
-  .info-banner-title { font-size: 13px; font-weight: 600; color: #3451c7; }
-  .info-banner-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
-  .auto-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #1e40af; margin-bottom: 14px; }
-  .tabs { display: flex; border-bottom: 2px solid #e4e6ef; margin-bottom: 16px; }
-  .tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 8px; font-size: 14px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-  .tab.active { color: #4263eb; border-bottom-color: #4263eb; }
-  .cat-block { background: #fff; border: 1px solid #e4e6ef; border-radius: 12px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
-  .cat-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; cursor: pointer; transition: background .12s; }
-  .cat-header:hover { background: #f5f6fa; }
-  .cat-header-left { display: flex; align-items: center; gap: 8px; }
-  .cat-icon { font-size: 16px; }
-  .cat-label { font-size: 14px; font-weight: 600; }
-  .cat-desc { font-size: 12px; color: #6b7280; margin-top: 1px; }
-  .cat-chevron { color: #9ca3af; font-size: 12px; transition: transform .15s; }
-  .cat-chevron.open { transform: rotate(180deg); }
-  .da { display: flex; gap: 6px; flex-shrink: 0; }
-  .da-btn { padding: 5px 12px; border-radius: 7px; border: 1.5px solid #e4e6ef; background: #fff; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; color: #6b7280; }
-  .da-deny.on  { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
-  .da-allow.on { background: #dcfce7; border-color: #86efac; color: #16a34a; }
-  .sub-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 10px 24px; border-top: 1px solid #e4e6ef; }
-  .sub-label { font-size: 13px; color: #6b7280; }
-  .xcheck { display: flex; gap: 5px; }
-  .btn-x  { width: 26px; height: 26px; border-radius: 6px; border: 1.5px solid #fca5a5; background: #fee2e2; color: #dc2626; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .btn-ck { width: 26px; height: 26px; border-radius: 6px; border: 1.5px solid #86efac; background: #dcfce7; color: #16a34a; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .btn-x.dim, .btn-ck.dim { opacity: 0.28; }
-  .btn-done { display: block; width: 100%; padding: 14px; background: #4263eb; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 16px; }
-  .off-tabs { display: flex; border-bottom: 2px solid #e4e6ef; margin-bottom: 16px; }
-  .off-tab { flex: 1; text-align: center; padding: 11px 8px; font-size: 14px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-  .off-tab.active { color: #4263eb; border-bottom-color: #4263eb; }
-  .off-head { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-  .off-count { font-size: 13px; color: #6b7280; margin-bottom: 14px; }
-  .ctx-box { background: #eef1ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
-  .ctx-title { font-size: 13px; font-weight: 600; color: #3451c7; margin-bottom: 4px; }
-  .ctx-sub { font-size: 12px; color: #6b7280; }
-  .off-card { background: #fff; border: 1px solid #e4e6ef; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: border-color .12s; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
-  .off-card:hover { border-color: #4263eb; }
-  .off-card.auto-selected { border-color: #4263eb; background: #eef1ff; }
-  .off-card-row { display: flex; align-items: flex-start; gap: 12px; }
-  .off-emoji { font-size: 28px; line-height: 1; }
-  .off-body { flex: 1; }
-  .off-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
-  .off-name { font-size: 14px; font-weight: 600; }
-  .auto-badge { font-size: 11px; color: #4263eb; font-weight: 600; }
-  .off-desc { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
-  .off-save-badge { font-size: 12px; color: #16a34a; font-weight: 600; background: #dcfce7; padding: 2px 8px; border-radius: 20px; display: inline-block; }
-  .off-price-col { text-align: right; flex-shrink: 0; }
-  .off-original { font-size: 12px; color: #9ca3af; text-decoration: line-through; }
-  .off-price { font-size: 16px; font-weight: 700; color: #4263eb; }
-  .no-off { font-size: 14px; color: #6b7280; padding: 20px 0; }
-  .order-card { background: #fff; border: 1px solid #e4e6ef; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
-  .order-title { font-size: 17px; font-weight: 700; padding: 16px 20px; border-bottom: 1px solid #e4e6ef; }
-  .order-line { display: flex; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #e4e6ef; font-size: 14px; }
-  .order-line:last-child { border-bottom: none; font-weight: 700; }
-  .smart-tip { background: #eef1ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #3451c7; margin-top: 12px; }
-  .btn-confirm { display: block; width: 100%; padding: 14px; background: #4263eb; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 12px; }
-  .confirm-wrap { display: flex; align-items: center; justify-content: center; min-height: 50vh; }
-  .confirm-box { background: #fff; border: 1px solid #e4e6ef; border-radius: 12px; padding: 40px 32px; text-align: center; max-width: 360px; width: 100%; }
-  .confirm-icon { width: 56px; height: 56px; border-radius: 50%; background: #dcfce7; border: 2px solid #86efac; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 26px; color: #16a34a; }
-  .confirm-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-  .confirm-sub { font-size: 14px; color: #6b7280; }
+// override rules (shared)
+// consent: override = changing a category to the opposite of the system's pre-selection (Assisted/Automated only)
+function isConsentOverride(group, id, newValue, currentValue) {
+  if (AUTOMATION === "manual" || newValue === currentValue) return false;
+  const systemDefault = !!(group === "acquisition" ? DEFAULT_ACQ : DEFAULT_PROC)[id];
+  return newValue !== systemDefault;
+}
+// offer: override = choosing an offer that is not the system's highlighted/selected offer of its tab (Assisted/Automated only)
+function isOfferOverride(offer, offersOfTab) {
+  if (AUTOMATION === "manual") return false;
+  return offer.matchScore < Math.max(...offersOfTab.map(o => o.matchScore));
+}
+// ═══ END STUDY TRACKING ═══
+
+// ─── TAILWIND (v4 + theme identical to the Figma prototype; module-level → runs before React mounts) ─
+if (typeof document !== "undefined" && !document.getElementById("tailwind-cdn")) {
+  // Figma theme: radius 0.625rem + base typography (identical to Figma's globals.css)
+  const tw = document.createElement("style");
+  tw.id = "tailwind-theme";
+  tw.setAttribute("type", "text/tailwindcss");
+  tw.textContent = `
+@theme {
+  --radius-sm: calc(0.625rem - 4px);
+  --radius-md: calc(0.625rem - 2px);
+  --radius-lg: 0.625rem;
+  --radius-xl: calc(0.625rem + 4px);
+}
+@layer base {
+  * { border-color: rgba(0, 0, 0, 0.1); outline-color: color-mix(in oklab, oklch(0.708 0 0) 50%, transparent); }
+  body { background: #ffffff; color: oklch(0.145 0 0); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+}
+/* Base typography — not applied to elements which have an ancestor with a Tailwind text class */
+@layer base {
+  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+    h1 { font-size: var(--text-2xl); font-weight: 500; line-height: 1.5; }
+    h2 { font-size: var(--text-xl); font-weight: 500; line-height: 1.5; }
+    h3 { font-size: var(--text-lg); font-weight: 500; line-height: 1.5; }
+    h4 { font-size: var(--text-base); font-weight: 500; line-height: 1.5; }
+    label { font-size: var(--text-base); font-weight: 500; line-height: 1.5; }
+    button { font-size: var(--text-base); font-weight: 500; line-height: 1.5; }
+    input { font-size: var(--text-base); font-weight: 400; line-height: 1.5; }
+  }
+}
+html { font-size: 16px; }
 `;
-
-function Wrap({ children }) {
-  return <div className="content-area"><div className="main">{children}</div></div>;
+  document.head.appendChild(tw);
+  const s = document.createElement("script");
+  s.id = "tailwind-cdn"; s.src = "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.12";
+  document.head.appendChild(s);
 }
 
-function TaskSidebar({ completed, active, onSelect }) {
-  return (
-    <div className="sidebar">
-      <div className="sidebar-title">Study Tasks</div>
+// ─── APP ─────────────────────────────────────────────────────────────────────
+export default function App() {
+  const trackerRef = useRef(null);
+  if (!trackerRef.current) trackerRef.current = createStudyTracker();
+  const tracker = trackerRef.current;
+
+  const [stage,           setStage]           = useState("home");
+  const [selectedOffer,   setSelectedOffer]   = useState(null);
+  const [activeCategory,  setActiveCategory]  = useState("Food");
+  const [consentTab,      setConsentTab]      = useState("acquisition");
+  const [acqConsents,     setAcqConsents]     = useState({...DEFAULT_ACQ});
+  const [procConsents,    setProcConsents]    = useState({...DEFAULT_PROC});
+  const [acqSaved,        setAcqSaved]        = useState(false);
+  const [procSaved,       setProcSaved]       = useState(false);
+  const [sidebarVisible,  setSidebarVisible]  = useState(false);
+  const [currentTask,     setCurrentTask]     = useState(0);
+  const [doneTasks,       setDoneTasks]       = useState([]);
+  const [orderNum,        setOrderNum]        = useState("");
+  const [customizing,     setCustomizing]     = useState(false); // consent: review-only until "Customize"
+  const [showAlternatives,setShowAlternatives]= useState(false); // offers: alternatives list
+
+  // sidebar/task bar follow the tracker (single source of truth)
+  const syncTasks = (finished) => {
+    if (!finished.length) return;
+    setDoneTasks(prev => Array.from(new Set([...prev, ...finished])));
+    setCurrentTask(tracker.current - 1);
+  };
+
+  // visit start (once)
+  useEffect(() => {
+    tracker.event("session_start", { details: {
+      participant_source: tracker.participantSource,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      user_agent: navigator.userAgent,
+    } });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // task sidebar appears after 5 seconds
+  useEffect(() => {
+    const t = setTimeout(() => { setSidebarVisible(true); tracker.event("tasks_shown"); }, 5000);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // every screen change
+  useEffect(() => { tracker.event("page_view", { page: stage }); }, [stage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Handlers (every click → tracker.action) ─────────────────────────────────
+  const goToConsent = () => {
+    tracker.action("nav", { page:"home", target:"privacy_settings" });
+    setCustomizing(false);
+    setConsentTab("acquisition");
+    setStage("consent");
+  };
+
+  const handleConsentTabChange = (tab) => {
+    tracker.action("tab_switch", { page:"consent", target:tab });
+    if (tab === "processing" && !tracker.isDone(1)) syncTasks(tracker.complete(1, "tab_switch"));
+    setConsentTab(tab); setAcqSaved(false); setProcSaved(false);
+  };
+
+  const handleAcqChange = (id, val) => {
+    tracker.action("consent_change", { page:"consent", target:id, value: val ? "allow" : "deny",
+      override: isConsentOverride("acquisition", id, val, !!acqConsents[id]), details:{ tab:"acquisition" } });
+    setAcqConsents(p => ({ ...p, [id]:val })); setAcqSaved(false);
+  };
+
+  const handleProcChange = (id, val) => {
+    tracker.action("consent_change", { page:"consent", target:id, value: val ? "allow" : "deny",
+      override: isConsentOverride("processing", id, val, !!procConsents[id]), details:{ tab:"processing" } });
+    setProcConsents(p => ({ ...p, [id]:val })); setProcSaved(false);
+  };
+
+  const applyAcq = () => {
+    tracker.action("consent_apply", { page:"consent", target:"acquisition" });
+    setAcqSaved(true);
+    if (!tracker.isDone(1)) syncTasks(tracker.complete(1, "apply"));
+  };
+
+  const applyProc = () => {
+    tracker.action("consent_apply", { page:"consent", target:"processing" });
+    setProcSaved(true);
+    if (!tracker.isDone(2)) syncTasks(tracker.complete(2, "apply"));
+  };
+
+  const handleCustomize = () => {
+    tracker.action("customize_toggle", { page:"consent", value: customizing ? "off" : "on" });
+    setCustomizing(c => !c);
+  };
+
+  // leaving the privacy settings completes Task 1 + 2 (if not done yet)
+  const handleBackFromConsent = () => {
+    tracker.action("consent_done", { page:"consent", details:{ acquisition:acqConsents, processing:procConsents } });
+    if (!tracker.isDone(2)) syncTasks(tracker.complete(2, "continue"));
+    setStage("analyzing");
+    setTimeout(() => setStage("offers"), 1500);
+  };
+
+  const handleOfferTab = (cat) => {
+    tracker.action("tab_switch", { page:"offers", target:cat });
+    setActiveCategory(cat);
+  };
+
+  const handleToggleAlternatives = () => {
+    tracker.action("alternatives_toggle", { page:"offers", value: showAlternatives ? "hide" : "show", details:{ tab:activeCategory } });
+    setShowAlternatives(v => !v);
+  };
+
+  const handleSelectOffer = (offer) => {
+    const tabOffers = ALL_OFFERS.filter(o => o.category === offer.category);
+    tracker.action("offer_select", { page:"offers", target:offer.name, value:offer.category,
+      override: isOfferOverride(offer, tabOffers) });
+    if (!tracker.isDone(3)) syncTasks(tracker.complete(3, "offer_select", { offer:offer.name }));
+    setSelectedOffer(offer);
+    setStage("order");
+  };
+
+  const goBackHome = () => {
+    tracker.action("nav", { page:"offers", target:"back_home", error:true });
+    setStage("home");
+  };
+
+  const goBackToOffers = () => {
+    tracker.action("nav", { page:"order", target:"back_offers", error:true });
+    setStage("offers");
+  };
+
+  const handlePlaceOrder = () => {
+    if (tracker.isDone(4)) return; // ignore double clicks
+    const num = `SH-${Math.floor(Math.random() * 90000) + 10000}`;
+    tracker.action("order_place", { page:"order", target:selectedOffer?.name, details:{ order_num:num } });
+    syncTasks(tracker.complete(4, "order_place", { offer:selectedOffer?.name, orderPlaced:true }));
+    setOrderNum(num);
+    setStage("complete");
+    setTimeout(() => {
+      const url = `${SURVEY_RETURN_URL}?session=${encodeURIComponent(tracker.participantId)}`;
+      tracker.event("survey_redirect", { page:"complete", details:{ url } });
+      window.location.href = url;
+    }, 2500);
+  };
+
+  const handleReturnHome = () => {
+    tracker.action("nav", { page:"complete", target:"return_home", error:true });
+    setStage("home");
+  };
+
+  // ── Mode badge ──────────────────────────────────────────────────────────────
+  const ModeBadge = () => (
+    <div className="fixed top-3 right-3 z-50">
+      <span className="text-xs px-2.5 py-1 rounded-full border font-medium shadow-sm bg-blue-50 text-blue-700 border-blue-200">
+        {MODE_LABEL}
+      </span>
+    </div>
+  );
+
+  // ── Task sidebar ────────────────────────────────────────────────────────────
+  const Sidebar = () => (
+    <div style={{ width:220, flexShrink:0, background:"#fff", borderRight:"1px solid #e5e7eb",
+      padding:"20px 0", position:"sticky", top:0, height:"100vh", overflowY:"auto" }}>
+      <p style={{ fontSize:11, fontWeight:600, letterSpacing:".06em", textTransform:"uppercase",
+        color:"#6b7280", padding:"0 16px 12px" }}>Your Tasks</p>
       {TASKS.map((t, i) => {
-        const isDone   = completed.includes(t.id);
-        const isActive = active?.id === t.id;
-        const isLocked = !isDone && !isActive && (i === 0 ? false : !completed.includes(TASKS[i-1].id));
+        const isDone   = doneTasks.includes(i);
+        const isActive = i === currentTask && sidebarVisible;
+        const isLocked = !isDone && !isActive;
         return (
-          <div key={t.id} className={`task-item${isDone ? " done" : ""}${isActive ? " active" : ""}${isLocked ? " locked" : ""}`}
-            onClick={() => { if (!isDone && !isLocked) onSelect(t); }}>
-            <div className={`task-cb${isDone ? " done" : isActive ? " active" : ""}`}>{isDone ? "✓" : ""}</div>
+          <div key={t.id} style={{
+            display:"flex", alignItems:"flex-start", gap:10, padding:"10px 16px",
+            borderLeft:`3px solid ${isActive ? "#4263eb" : "transparent"}`,
+            background: isActive ? "#eef1ff" : "transparent",
+            opacity: isLocked ? 0.35 : isDone ? 0.5 : 1,
+          }}>
+            <div style={{
+              width:18, height:18, borderRadius:"50%", flexShrink:0, marginTop:2,
+              border:`2px solid ${isDone ? "#16a34a" : isActive ? "#4263eb" : "#d1d5db"}`,
+              background: isDone ? "#16a34a" : "transparent",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:10, color:"#fff",
+            }}>
+              {isDone ? "✓" : ""}
+            </div>
             <div>
-              <div className="task-lbl">{t.label}</div>
-              <div className="task-desc">{t.desc.slice(0, 50)}…</div>
+              <p style={{ fontSize:12, fontWeight:600, color:"#111827" }}>{t.label}</p>
+              <p style={{ fontSize:11, color:"#6b7280", marginTop:2, lineHeight:1.4 }}>{t.short}</p>
             </div>
           </div>
         );
       })}
     </div>
   );
-}
 
-function TaskBanner({ task, onComplete }) {
-  if (!task) return null;
-  return (
-    <div className="task-banner">
-      <div className="task-banner-lbl">{task.label}</div>
-      <div className="task-banner-desc">{task.desc}</div>
-      <button className="btn-task-done" onClick={onComplete}>✓ Task Completed</button>
-    </div>
-  );
-}
-
-function DA({ value, onDeny, onAllow }) {
-  return (
-    <div className="da">
-      <button className={`da-btn da-deny${value === "deny" ? " on" : ""}`} onClick={onDeny}>Deny</button>
-      <button className={`da-btn da-allow${value === "allow" ? " on" : ""}`} onClick={onAllow}>Allow</button>
-    </div>
-  );
-}
-
-function XCheck({ value, onDeny, onAllow }) {
-  return (
-    <div className="xcheck">
-      <button className={`btn-x${value === "deny" ? "" : " dim"}`} onClick={onDeny}>✕</button>
-      <button className={`btn-ck${value === "allow" ? "" : " dim"}`} onClick={onAllow}>✓</button>
-    </div>
-  );
-}
-
-function PrivacyScreen({ catVal, setCatVal, subVal, setSubVal, usgVal, setUsgVal, usgSub, setUsgSub, onBack, onDone, activeTask, onTaskComplete, sessionId, tracker }) {
-  useEffect(() => {
-    const t0 = Date.now();
-    logEvent({ session_id: sessionId, flow: FLOW, event_type: "page_enter", page: "privacy_settings", task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-    return () => logEvent({ session_id: sessionId, flow: FLOW, event_type: "page_exit", page: "privacy_settings", time_on_page_ms: Date.now() - t0, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const [tab, setTab]           = useState(activeTask?.id === "task3" ? "usage" : "collection");
-  const [expanded, setExpanded] = useState({});
-
-  function toggleCat(id, val, state, setState) {
-    const prev = state[id]; const next = prev === val ? null : val;
-    // Automated: every change is override
-    tracker.override();
-    setState(s => ({ ...s, [id]: next }));
-    logEvent({ session_id: sessionId, flow: FLOW, event_type: "override", item: id, value: next, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-  }
-  function toggleSub(key, val, state, setState) {
-    const prev = state[key]; const next = prev === val ? null : val;
-    tracker.override();
-    setState(s => ({ ...s, [key]: next }));
-    logEvent({ session_id: sessionId, flow: FLOW, event_type: "override", item: key, value: next, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-  }
-  function expand(key, depth) {
-    tracker.expand(depth); setExpanded(e => ({ ...e, [key]: !e[key] }));
-    logEvent({ session_id: sessionId, flow: FLOW, event_type: "expand", item: key, value: depth, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-  }
-  function switchTab(t) {
-    if (activeTask?.id === "task2" && t === "usage")      { tracker.error(); logEvent({ session_id: sessionId, flow: FLOW, event_type: "error", element: "tab_switch_wrong", value: t, task: activeTask?.id, client_timestamp: new Date().toISOString() }); }
-    if (activeTask?.id === "task3" && t === "collection") { tracker.error(); logEvent({ session_id: sessionId, flow: FLOW, event_type: "error", element: "tab_switch_wrong", value: t, task: activeTask?.id, client_timestamp: new Date().toISOString() }); }
-    tracker.click(); setTab(t);
-    logEvent({ session_id: sessionId, flow: FLOW, event_type: "tab_switch", from: tab, to: t, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-  }
-
-  return (
-    <Wrap>
-      <TaskBanner task={activeTask} onComplete={onTaskComplete} />
-      <div className="back" onClick={() => { tracker.click(); onBack(); }}>← Back to Home</div>
-      <div className="page-title">Privacy Settings</div>
-      <div className="page-sub">Control what data is collected and how it's used</div>
-      <div className="info-banner">
-        <span className="info-banner-icon">ℹ️</span>
-        <div>
-          <div className="info-banner-title">Manage Your Privacy</div>
-          <div className="info-banner-sub">Expand categories to control specific data types.</div>
-        </div>
-      </div>
-      <div className="auto-box">✓ Settings have been automatically configured. You can override them below.</div>
-      <div className="tabs">
-        <div className={`tab${tab === "collection" ? " active" : ""}`} onClick={() => switchTab("collection")}>🗄️ Data Collection</div>
-        <div className={`tab${tab === "usage" ? " active" : ""}`} onClick={() => switchTab("usage")}>⚙️ Data Usage</div>
-      </div>
-
-      {tab === "collection" && (
-        <>
-          {COLLECTION_CATS.map(cat => (
-            <div className="cat-block" key={cat.id}>
-              <div className="cat-header">
-                <div className="cat-header-left" onClick={() => cat.subs.length > 0 && expand(cat.id, 1)}>
-                  <span className="cat-icon">{cat.icon}</span>
-                  <span className="cat-label">{cat.label}</span>
-                  {cat.subs.length > 0 && <span className={`cat-chevron${expanded[cat.id] ? " open" : ""}`}>▾</span>}
-                </div>
-                <DA value={catVal[cat.id]}
-                  onDeny={() => toggleCat(cat.id, "deny", catVal, setCatVal)}
-                  onAllow={() => toggleCat(cat.id, "allow", catVal, setCatVal)} />
-              </div>
-              {expanded[cat.id] && cat.subs.map(sub => {
-                const key = `${cat.id}_${sub}`;
-                return (
-                  <div className="sub-item" key={sub}>
-                    <span className="sub-label">{sub}</span>
-                    <XCheck value={subVal[key]}
-                      onDeny={() => toggleSub(key, "deny", subVal, setSubVal)}
-                      onAllow={() => toggleSub(key, "allow", subVal, setSubVal)} />
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </>
-      )}
-      {tab === "usage" && (
-        <>
-          {USAGE_CATS.map(cat => (
-            <div className="cat-block" key={cat.id}>
-              <div className="cat-header">
-                <div className="cat-header-left" onClick={() => cat.subs.length > 0 && expand("u_" + cat.id, 1)}>
-                  <span className="cat-icon">{cat.icon}</span>
-                  <div>
-                    <div className="cat-label">{cat.label}</div>
-                    <div className="cat-desc">{cat.desc}</div>
-                  </div>
-                  {cat.subs.length > 0 && <span className={`cat-chevron${expanded["u_" + cat.id] ? " open" : ""}`}>▾</span>}
-                </div>
-                <DA value={usgVal[cat.id]}
-                  onDeny={() => toggleCat(cat.id, "deny", usgVal, setUsgVal)}
-                  onAllow={() => toggleCat(cat.id, "allow", usgVal, setUsgVal)} />
-              </div>
-              {expanded["u_" + cat.id] && cat.subs.map(sub => {
-                const key = `${cat.id}_${sub}`;
-                return (
-                  <div className="sub-item" key={sub}>
-                    <span className="sub-label">{sub}</span>
-                    <XCheck value={usgSub[key]}
-                      onDeny={() => toggleSub(key, "deny", usgSub, setUsgSub)}
-                      onAllow={() => toggleSub(key, "allow", usgSub, setUsgSub)} />
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </>
-      )}
-      <button className="btn-done" onClick={() => { tracker.click(); onDone(); }}>Done – Return to Home</button>
-    </Wrap>
-  );
-}
-
-function OffersScreen({ onSelect, onBack, activeTask, onTaskComplete, sessionId, tracker }) {
-  useEffect(() => {
-    const t0 = Date.now();
-    logEvent({ session_id: sessionId, flow: FLOW, event_type: "page_enter", page: "offers", task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-    return () => logEvent({ session_id: sessionId, flow: FLOW, event_type: "page_exit", page: "offers", time_on_page_ms: Date.now() - t0, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [tab, setTab] = useState("food");
-
-  function handleBack() {
-    if (activeTask?.id === "task4") { tracker.error(); logEvent({ session_id: sessionId, flow: FLOW, event_type: "error", element: "left_offers_without_selection", task: "task4", client_timestamp: new Date().toISOString() }); }
-    tracker.click(); onBack();
-  }
-  function switchTab(t) {
-    tracker.click(); setTab(t);
-    logEvent({ session_id: sessionId, flow: FLOW, event_type: "tab_switch", from: tab, to: t, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-  }
-
-  return (
-    <Wrap>
-      <TaskBanner task={activeTask} onComplete={onTaskComplete} />
-      <div className="back" onClick={handleBack}>← Back to Home</div>
-      <div className="off-tabs">
-        {["food","home","wellness"].map(t => (
-          <div key={t} className={`off-tab${tab === t ? " active" : ""}`} onClick={() => switchTab(t)}>{t.charAt(0).toUpperCase()+t.slice(1)}</div>
-        ))}
-      </div>
-      {tab === "food" ? (
-        <>
-          <div className="off-head">Personalized Offers for You</div>
-          <div className="off-count">{OFFERS.length} available</div>
-          <div className="ctx-box">
-            <div className="ctx-title">ℹ️ Based on Your Settings</div>
-            <div className="ctx-sub">These offers match your preferences (2 people home, 7:15 PM, no cooking activity)</div>
+  // ── Task description bar ────────────────────────────────────────────────────
+  const TaskBar = () => {
+    if (!sidebarVisible || currentTask >= TASKS.length) return null;
+    const t = TASKS[currentTask];
+    const progress = ((currentTask + 1) / TASKS.length) * 100;
+    return (
+      <div style={{ background:"#1e1b4b", borderBottom:"1px solid rgba(99,102,241,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, padding:"13px 20px" }}>
+          {/* Numbered circle */}
+          <div style={{
+            width:32, height:32, borderRadius:"50%", flexShrink:0,
+            background:"rgba(99,102,241,0.25)", border:"1.5px solid rgba(99,102,241,0.6)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:13, fontWeight:700, color:"#a5b4fc",
+          }}>
+            {currentTask + 1}
           </div>
-          {OFFERS.map((o, i) => (
-            <div key={o.id} className={`off-card${i === 0 ? " auto-selected" : ""}`}
-              onClick={() => { tracker.click(); logEvent({ session_id: sessionId, flow: FLOW, event_type: "click", element: "select_offer", offer: o.name, task: activeTask?.id || null, client_timestamp: new Date().toISOString() }); onSelect(o); }}>
-              <div className="off-card-row">
-                <span className="off-emoji">{o.emoji}</span>
-                <div className="off-body">
-                  <div className="off-name-row">
-                    <span className="off-name">{o.name}</span>
-                    {i === 0 && <span className="auto-badge">Auto-selected</span>}
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:10, fontWeight:700, textTransform:"uppercase",
+              letterSpacing:".09em", color:"#818cf8", marginBottom:4 }}>
+              {t.label} &nbsp;·&nbsp; {currentTask + 1} of {TASKS.length}
+            </div>
+            <div style={{ fontSize:13, color:"#c7d2fe", lineHeight:1.55 }}>
+              {t.desc}
+            </div>
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div style={{ height:3, background:"rgba(255,255,255,0.07)" }}>
+          <div style={{
+            height:"100%", width:`${progress}%`,
+            background:"linear-gradient(90deg,#6366f1,#818cf8)",
+            transition:"width 0.4s ease",
+          }} />
+        </div>
+      </div>
+    );
+  };
+
+  // ── COMPLETE ────────────────────────────────────────────────────────────────
+  if (stage === "complete") {
+    return (
+      <div style={{ display:"flex", minHeight:"100vh" }}>
+        {sidebarVisible && <Sidebar />}
+        <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+          <TaskBar />
+          <ModeBadge />
+          <div className="min-h-screen flex items-center justify-center p-4 bg-green-50">
+            <div className="max-w-md w-full text-center bg-white border border-green-200 rounded-lg p-8 shadow-sm">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-xl text-gray-900 mb-2">Order Confirmed Automatically!</h2>
+              <p className="text-gray-600 text-sm mb-2">{selectedOffer?.name} has been confirmed</p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 my-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-600 text-xs">Order #</p>
+                    <p className="font-medium">{orderNum}</p>
                   </div>
-                  <div className="off-desc">{o.desc}</div>
-                  <span className="off-save-badge">Save ${o.save}.00</span>
+                  <div>
+                    <p className="text-gray-600 text-xs">Est. Time</p>
+                    <p className="font-medium">30-45 min</p>
+                  </div>
                 </div>
-                <div className="off-price-col">
-                  <div className="off-original">${o.original.toFixed(2)}</div>
-                  <div className="off-price">${o.price.toFixed(2)}</div>
+              </div>
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                <p className="flex items-center gap-1.5 justify-center font-medium mb-1"><Zap className="w-3.5 h-3.5" /> Smart Home System Actions</p>
+                <p>Privacy configured · Preferences analyzed · Best offer selected · Order placed</p>
+              </div>
+              <p className="text-xs text-gray-400 mb-6">Redirecting to survey…</p>
+              <button
+                onClick={handleReturnHome}
+                className="w-full py-3 rounded-lg font-medium transition-all bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Return to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── ANALYZING ───────────────────────────────────────────────────────────────
+  if (stage === "analyzing") {
+    return (
+      <div style={{ display:"flex", minHeight:"100vh" }}>
+        {sidebarVisible && <Sidebar />}
+        <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+          <TaskBar />
+          <ModeBadge />
+          <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50">
+            <div className="max-w-md w-full text-center bg-white border border-gray-200 rounded-lg p-8 shadow-lg">
+              <div className="relative mb-5">
+                <Loader2 className="w-12 h-12 text-blue-600 mx-auto" style={{ animation:"spin 1s linear infinite" }} />
+              </div>
+              <h2 className="text-xl font-medium text-gray-900 mb-2">Finalizing Your Personalized Selection</h2>
+              <p className="text-gray-600 text-sm mb-5">The Smart Home System is preparing your curated selection based on all gathered data...</p>
+              <div className="space-y-2 mb-4 text-left">
+                {["Privacy settings applied", "Kitchen sensors checked (no cooking)", "Presence analyzed (2 people)", "Top offers curated for you"].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2.5 text-sm text-gray-600">
+                    <div className="w-2 h-2 rounded-full animate-pulse bg-blue-500" style={{ animationDelay:`${i * 0.2}s` }}></div>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // ── ORDER ────────────────────────────────────────────────────────────────────
+  if (stage === "order" && selectedOffer) {
+    const savings = selectedOffer.originalPrice
+      ? (parseFloat(selectedOffer.originalPrice.substring(1)) - parseFloat(selectedOffer.price.substring(1))).toFixed(2)
+      : "0";
+    const meta =
+      selectedOffer.category === "Food" ? { deliveryLabel:"Delivery Type", deliveryValue:"Standard delivery", timeLabel:"30-45 minutes", timeSub:"Free delivery" }
+    : selectedOffer.category === "Home" ? { deliveryLabel:"Service Type",  deliveryValue:"One-time setup",    timeLabel:"Same day",      timeSub:"Installation included" }
+    :                                     { deliveryLabel:"Session Type",  deliveryValue:"Virtual session",   timeLabel:"Flexible",      timeSub:"Schedule anytime" };
+    return (
+      <div style={{ display:"flex", minHeight:"100vh" }}>
+        {sidebarVisible && <Sidebar />}
+        <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+          <TaskBar />
+          <ModeBadge />
+          <div className="min-h-screen bg-gray-100 p-4">
+            <div className="max-w-xl mx-auto pt-8">
+              <button onClick={goBackToOffers} className="mb-5 flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600">
+                ← Back to Offers
+              </button>
+              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                <h2 className="text-xl font-medium mb-5 flex items-center gap-2">
+                  <span>{selectedOffer.icon}</span> Order Confirmation
+                </h2>
+                <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-emerald-800">All order details automatically configured by Smart Home System.</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-xs text-blue-700 font-medium mb-0.5">SELECTED OFFER</p>
+                  <p className="font-medium">{selectedOffer.name}</p>
+                  <p className="text-sm text-gray-600 mt-1">{selectedOffer.description}</p>
+                </div>
+                <div className="space-y-3 mb-4">
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">{meta.deliveryLabel}</span>
+                    <span className="text-sm font-medium">{meta.deliveryValue}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">Estimated Time</span>
+                    <div className="text-right">
+                      <span className="text-sm font-medium">{meta.timeLabel}</span>
+                      <p className="text-xs text-green-600">{meta.timeSub}</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">Price</span>
+                    <div className="text-right">
+                      {selectedOffer.originalPrice && <span className="text-xs text-gray-400 line-through block">{selectedOffer.originalPrice}</span>}
+                      <span className="font-medium text-blue-600">{selectedOffer.price}</span>
+                    </div>
+                  </div>
+                  {selectedOffer.originalPrice && (
+                    <div className="flex justify-between py-2 bg-green-50 rounded px-2">
+                      <span className="text-sm text-green-700 font-medium">You Save</span>
+                      <span className="text-sm font-medium text-green-700">${savings}</span>
+                    </div>
+                  )}
+                </div>
+                <button onClick={handlePlaceOrder} className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                  ⚡ Confirm &amp; Auto-Place Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── OFFERS ───────────────────────────────────────────────────────────────────
+  if (stage === "offers") {
+    const filtered    = ALL_OFFERS.filter(o => o.category === activeCategory);
+    // System's selection = highest match score in the active category
+    const preSelected = filtered.reduce((best, o) => o.matchScore > best.matchScore ? o : best, filtered[0]);
+
+    return (
+      <div style={{ display:"flex", minHeight:"100vh" }}>
+        {sidebarVisible && <Sidebar />}
+        <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+          <TaskBar />
+          <ModeBadge />
+          <div className="min-h-screen p-4 bg-gray-100">
+            <div className="max-w-2xl mx-auto pt-8">
+              <button onClick={goBackHome} className="mb-5 text-sm text-gray-600 hover:text-blue-600 flex items-center gap-1">
+                ← Back to Home
+              </button>
+
+              {/* System selection banner */}
+              <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 mb-1">⚡ System Selected: {preSelected.name}</p>
+                    <p className="text-sm text-gray-700">{`Highest match (${preSelected.matchScore}%) for your situation.`}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                {/* Category tabs */}
+                <div className="border-b border-gray-200 flex">
+                  {["Food","Home","Wellness"].map(cat => (
+                    <button key={cat}
+                      onClick={() => handleOfferTab(cat)}
+                      className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                        activeCategory === cat
+                          ? "bg-white border-b-2 border-blue-600 text-blue-600"
+                          : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      }`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-5">
+                  {/* Pre-selected offer */}
+                  <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-200 text-green-800">
+                        ⚡ System's Selection
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-3xl">{preSelected.icon}</span>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900">{preSelected.name}</p>
+                        <p className="text-sm text-gray-600 mt-0.5">{preSelected.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-blue-600">{preSelected.price}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => handleSelectOffer(preSelected)}
+                      className="w-full mt-3 py-2.5 font-medium rounded-lg transition-all bg-emerald-600 text-white hover:bg-emerald-700">
+                      ✓ Confirm This Selection
+                    </button>
+                  </div>
+
+                  {/* See alternatives toggle */}
+                  <button onClick={handleToggleAlternatives}
+                    className="w-full text-sm text-gray-500 hover:text-blue-600 py-2 transition-colors flex items-center justify-center gap-1">
+                    {showAlternatives ? "▲ Hide" : "▼ See"} all {activeCategory} alternatives
+                  </button>
+
+                  {showAlternatives && (
+                    <div className="mt-3 space-y-3">
+                      {filtered.filter(o => o.id !== preSelected.id).map(offer => {
+                        const savings = offer.originalPrice
+                          ? (parseFloat(offer.originalPrice.substring(1)) - parseFloat(offer.price.substring(1))).toFixed(2)
+                          : "0";
+                        return (
+                        <button key={offer.id}
+                            onClick={() => handleSelectOffer(offer)}
+                            className="w-full p-4 border rounded-lg hover:border-blue-500 hover:shadow-md transition-all text-left border-gray-200 bg-white">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 flex-1">
+                                <span className="text-3xl">{offer.icon}</span>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <p className="font-medium text-gray-900">{offer.name}</p>
+                                  </div>
+                                  <p className="text-xs text-gray-600">{offer.description}</p>
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                      <div className="h-full bg-green-500 rounded-full" style={{ width:`${offer.matchScore}%` }}></div>
+                                    </div>
+                                    <span className="text-xs text-green-600 font-medium">{offer.matchScore}% match</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                {offer.originalPrice && <span className="text-xs text-gray-400 line-through block">{offer.originalPrice}</span>}
+                                <span className="font-bold text-blue-600">{offer.price}</span>
+                                {offer.originalPrice && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded mt-1 block">Save ${savings}</span>}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          ))}
-        </>
-      ) : (
-        <div className="no-off">No offers available for this category.</div>
-      )}
-    </Wrap>
-  );
-}
-
-function OrderScreen({ offer, onPlace, onBack, activeTask, onTaskComplete, sessionId, tracker, setOrderConfirmed }) {
-  useEffect(() => {
-    const t0 = Date.now();
-    logEvent({ session_id: sessionId, flow: FLOW, event_type: "page_enter", page: "order_summary", task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-    return () => logEvent({ session_id: sessionId, flow: FLOW, event_type: "page_exit", page: "order_summary", time_on_page_ms: Date.now() - t0, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleBack() {
-    if (activeTask?.id === "task5") { tracker.error(); logEvent({ session_id: sessionId, flow: FLOW, event_type: "error", element: "left_order_without_confirming", task: "task5", client_timestamp: new Date().toISOString() }); }
-    tracker.click(); onBack();
-  }
-
-  return (
-    <Wrap>
-      <TaskBanner task={activeTask} onComplete={onTaskComplete} />
-      <div className="back" onClick={handleBack}>← Back to Offers</div>
-      <div className="auto-box">✓ Order automatically prepared based on your preferences.</div>
-      <div className="order-card">
-        <div className="order-title">{offer.emoji} Order Summary</div>
-        <div className="order-line"><span>Selected Item</span><span style={{ fontWeight: 600 }}>{offer.name}</span></div>
-        <div style={{ padding: "4px 20px 8px", fontSize: 12, color: "#6b7280" }}>{offer.desc}</div>
-        <div className="order-line"><span>Delivery Type</span><span>Standard (auto-selected)</span></div>
-        <div className="order-line"><span>Delivery Fee</span><span>Free</span></div>
-        <div className="order-line"><span>Total</span><span style={{ color: "#4263eb" }}>${offer.price.toFixed(2)}</span></div>
-      </div>
-      <div className="smart-tip">💡 <strong>Smart Tip:</strong> This offer matches your preferences and saves you ${offer.save}.00!</div>
-      <button className="btn-confirm" onClick={() => {
-        tracker.click(); setOrderConfirmed(true);
-        logEvent({ session_id: sessionId, flow: FLOW, event_type: "click", element: "confirm_place_order", offer: offer.name, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-        logEvent({ session_id: sessionId, flow: FLOW, event_type: "order_placed", offer: offer.name, task: activeTask?.id || null, client_timestamp: new Date().toISOString() });
-        onPlace();
-      }}>Confirm &amp; Place Order</button>
-    </Wrap>
-  );
-}
-
-function ConfirmScreen({ onHome, activeTask, onTaskComplete }) {
-  return (
-    <Wrap>
-      <TaskBanner task={activeTask} onComplete={onTaskComplete} />
-      <div className="confirm-wrap">
-        <div className="confirm-box">
-          <div className="confirm-icon">✓</div>
-          <div className="confirm-title">Order Placed</div>
-          <div className="confirm-sub">Your order has been confirmed</div>
-          <button className="btn-confirm" style={{ marginTop: 24 }} onClick={onHome}>Back to Home</button>
+          </div>
         </div>
       </div>
-    </Wrap>
-  );
-}
-
-export default function App() {
-  const sessionId = useRef(getOrCreateSessionId()).current;
-  const tracker   = useRef(createTracker(sessionId)).current;
-
-  const [screen,         setScreen]         = useState("privacy");
-  const [offer,          setOffer]          = useState(TOP_OFFER);
-  const [activeTask,     setActiveTask]     = useState(null);
-  const [completed,      setCompleted]      = useState([]);
-  const [orderConfirmed, setOrderConfirmed] = useState(false);
-
-  const [catVal, setCatVal] = useState({ ...DEFAULT_CAT });
-  const [subVal, setSubVal] = useState({});
-  const [usgVal, setUsgVal] = useState({ ...DEFAULT_USG });
-  const [usgSub, setUsgSub] = useState({});
-
-  function startTask(task) {
-    if (completed.includes(task.id)) return;
-    if (task.id === "task2") { setCatVal({ homeSensors: "deny", behaviorPatterns: "deny", purchaseHistory: "deny" }); setSubVal({}); }
-    if (task.id === "task3") { setUsgVal({ foodServices: "deny", homeServices: "deny", wellnessServices: "deny" }); setUsgSub({}); }
-    tracker.start(task.id);
-    setActiveTask(task);
-    if (["task1","task2","task3"].includes(task.id)) setScreen("privacy");
-    else if (task.id === "task4") setScreen("offers");
-    else if (task.id === "task5") setScreen("order");
+    );
   }
 
-  function handleTaskComplete() {
-    const result = tracker.complete(offer?.name || null, orderConfirmed);
-    if (result?.task) setCompleted(prev => [...prev, result.task]);
-    setActiveTask(null);
-    setOrderConfirmed(false);
-    setScreen("privacy");
-  }
+  // ── CONSENT ──────────────────────────────────────────────────────────────────
+  if (stage === "consent") {
+    const isAcqTab = consentTab === "acquisition";
+    const cats     = isAcqTab ? ACQ_CATS : PROC_CATS;
+    const consents = isAcqTab ? acqConsents : procConsents;
+    const saved    = isAcqTab ? acqSaved : procSaved;
+    const onChange = isAcqTab ? handleAcqChange : handleProcChange;
+    const onApply  = isAcqTab ? applyAcq : applyProc;
+    const readOnly = !customizing;
 
-  return (
-    <>
-      <style>{CSS}</style>
-      <div className="app">
-        <TaskSidebar completed={completed} active={activeTask} onSelect={startTask} />
-        {screen === "privacy"  && <PrivacyScreen catVal={catVal} setCatVal={setCatVal} subVal={subVal} setSubVal={setSubVal} usgVal={usgVal} setUsgVal={setUsgVal} usgSub={usgSub} setUsgSub={setUsgSub} onBack={() => setScreen("privacy")} onDone={() => setScreen("offers")} activeTask={activeTask} onTaskComplete={handleTaskComplete} sessionId={sessionId} tracker={tracker} />}
-        {screen === "offers"   && <OffersScreen  onSelect={o => { setOffer(o); setScreen("order"); }} onBack={() => setScreen("privacy")} activeTask={activeTask} onTaskComplete={handleTaskComplete} sessionId={sessionId} tracker={tracker} />}
-        {screen === "order"    && <OrderScreen   offer={offer} onPlace={() => setScreen("confirm")} onBack={() => setScreen("offers")} activeTask={activeTask} onTaskComplete={handleTaskComplete} sessionId={sessionId} tracker={tracker} setOrderConfirmed={setOrderConfirmed} />}
-        {screen === "confirm"  && <ConfirmScreen onHome={() => setScreen("privacy")} activeTask={activeTask} onTaskComplete={handleTaskComplete} />}
+    return (
+      <div style={{ display:"flex", minHeight:"100vh" }}>
+        {sidebarVisible && <Sidebar />}
+        <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+          <TaskBar />
+          <ModeBadge />
+          {/* ConsentUnified — MEDIUM vis + HIGH auto */}
+          <div className="min-h-screen bg-gray-100 p-4 pt-8">
+            <div className="max-w-3xl mx-auto">
+
+              {/* Header — high automation, medium visibility */}
+              <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Zap className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h1 className="text-lg font-medium text-gray-900">Privacy Settings</h1>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">Auto-Configured</span>
+                      </div>
+                      <p className="text-sm text-gray-600">System has automatically configured optimal privacy settings based on your usage.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCustomize}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+                      customizing ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                    }`}>
+                    <Settings className="w-3.5 h-3.5" />
+                    {customizing ? "Done" : "Customize"}
+                  </button>
+                </div>
+                {!customizing && (
+                  <div className="mt-3 text-xs text-green-700 flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Reviewing only — click "Customize" to modify settings</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Card */}
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                {/* Tab bar */}
+                <div className="border-b border-gray-200 flex">
+                  {[
+                    { id:"acquisition", label:"Data Collection", Icon:Database },
+                    { id:"processing",  label:"Data Usage",      Icon:Cpu      },
+                  ].map(({ id, label, Icon:TabIcon }) => (
+                    <button key={id}
+                      onClick={() => handleConsentTabChange(id)}
+                      className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                        consentTab === id
+                          ? "bg-white border-b-2 border-blue-600 text-blue-600"
+                          : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      }`}>
+                      <div className="flex items-center justify-center gap-2">
+                        <TabIcon className="w-4 h-4" />
+                        <span>{label}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* List — medium visibility */}
+                <div className="p-5 max-h-[600px] overflow-y-auto">
+                  <div className="space-y-3 mb-4">
+                    {cats.map(cat => {
+                      const enabled = !!consents[cat.id];
+                      return (
+                        <div key={cat.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              <span className="text-2xl">{cat.icon}</span>
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium">{cat.label}</span>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full border ${sensitivityColor(cat.sensitivity)}`}>
+                                    {cat.sensitivity}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-600">{cat.description}</p>
+                                {enabled && (
+                                  <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                                    <Zap className="w-3 h-3" /> Auto-configured: enabled for personalization
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {readOnly ? (
+                              <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full ${
+                                enabled ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"
+                              }`}>
+                                {enabled
+                                  ? <CheckCircle className="w-3.5 h-3.5" />
+                                  : <span className="w-3.5 h-3.5 inline-flex items-center justify-center">○</span>}
+                                {enabled ? "Auto-enabled" : "Disabled"}
+                              </div>
+                            ) : (
+                            <div className="flex flex-col gap-1 items-end">
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => onChange(cat.id, false)}
+                                  className={`px-3 py-1 text-xs rounded-lg font-medium transition-all ${
+                                    !enabled ? "bg-gray-400 text-white" : "bg-gray-100 text-gray-600 border border-gray-300"
+                                  }`}>
+                                  Deny
+                                </button>
+                                <button
+                                  onClick={() => onChange(cat.id, true)}
+                                  className={`px-3 py-1 text-xs rounded-lg font-medium transition-all ${
+                                    enabled ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600 border border-gray-300"
+                                  }`}>
+                                  Allow
+                                </button>
+                              </div>
+                            </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Save button (hidden while reviewing) */}
+                  {!readOnly && (
+                  <button
+                    onClick={onApply}
+                    className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      saved ? "bg-green-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}>
+                    {saved
+                      ? "✓ Saved!"
+                      : isAcqTab
+                        ? "Apply Data Collection Settings"
+                        : "Apply Data Usage Settings"}
+                  </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Continue button */}
+              <div className="mt-6">
+                <button
+                  onClick={handleBackFromConsent}
+                  className="w-full py-3 rounded-lg font-medium transition-all bg-blue-600 text-white hover:bg-blue-700 shadow-sm">
+                  {customizing ? "Apply Settings & View Offers →" : "Continue to Offers →"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </>
+    );
+  }
+
+  // ── HOME ─────────────────────────────────────────────────────────────────────
+  return (
+    <div style={{ display:"flex", minHeight:"100vh" }}>
+      {sidebarVisible && <Sidebar />}
+      <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+        <TaskBar />
+        <ModeBadge />
+        <div className="min-h-screen p-4 bg-gray-100">
+          <div className="max-w-2xl mx-auto pt-10">
+
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                <HomeIcon className="w-8 h-8 text-blue-600" />
+              </div>
+              <h1 className="text-2xl text-gray-900 mb-2">Smart Home System</h1>
+              <p className="text-gray-600 text-sm">Wednesday, 7:15 PM</p>
+              <p className="text-xs text-gray-500 mt-1">2 people detected at home</p>
+            </div>
+
+            {/* Medium visibility sensor cards */}
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">🌡️ Temperature</p>
+                <p className="font-medium">22°C</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">👥 People</p>
+                <p className="font-medium">2 at home</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">🍳 Kitchen</p>
+                <p className="font-medium">Inactive</p>
+              </div>
+            </div>
+
+            {/* Main action card */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-5">
+              <div className="mb-5 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 mb-1">✅ Your Offers Are Ready</p>
+                    <p className="text-sm text-gray-600">System has auto-configured settings and prepared personalized offers.</p>
+                    <div className="flex gap-2 mt-2 text-xs text-green-700">
+                      <span>✓ Privacy set</span>
+                      <span>✓ Data analyzed</span>
+                      <span>✓ Offers ready</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={goToConsent}
+                className="w-full flex items-center justify-between px-5 py-3 rounded-lg transition-all bg-blue-600 text-white hover:bg-blue-700 font-medium">
+                <div className="flex items-center gap-2">
+                  <span>Review Offers →</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
